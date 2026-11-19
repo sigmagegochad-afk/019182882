@@ -1,4 +1,5 @@
--- SAKTKIA51 HUB v3 — horizontal mobile GUI, collapsible weapon list, section tabs
+-- SAKTKIA51 HUB v4 — Infinite Ammo + 5 new functions + polished UI
+-- Delta / Fluxus recommended (Arceus X lacks hookfunction support)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,7 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
--- ========== IMPROVED LOADING SCREEN ==========
+-- ========== LOADING SCREEN ==========
 local loadGui = Instance.new("ScreenGui")
 loadGui.Name = "SAKTK_Loader"
 loadGui.IgnoreGuiInset = true
@@ -23,44 +24,42 @@ loadBg.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
 loadBg.BorderSizePixel = 0
 loadBg.Parent = loadGui
 
--- animated accent line
-local accentLine = Instance.new("Frame")
-accentLine.Size = UDim2.new(0, 0, 0, 2)
-accentLine.Position = UDim2.new(0, 0, 0.45, 0)
-accentLine.BackgroundColor3 = Color3.fromRGB(0, 240, 200)
-accentLine.BorderSizePixel = 0
-accentLine.Parent = loadBg
-TweenService:Create(accentLine, TweenInfo.new(0.8), {Size = UDim2.new(1, 0, 0, 2)}):Play()
+local accent = Instance.new("Frame")
+accent.Size = UDim2.new(0, 0, 0, 2)
+accent.Position = UDim2.new(0, 0, 0.45, 0)
+accent.BackgroundColor3 = Color3.fromRGB(0, 240, 200)
+accent.BorderSizePixel = 0
+accent.Parent = loadBg
+TweenService:Create(accent, TweenInfo.new(0.8), {Size = UDim2.new(1, 0, 0, 2)}):Play()
 
 local logoFrame = Instance.new("Frame")
-logoFrame.Size = UDim2.new(0, 200, 0, 80)
-logoFrame.Position = UDim2.new(0.5, -100, 0.42, -40)
+logoFrame.Size = UDim2.new(0, 220, 0, 80)
+logoFrame.Position = UDim2.new(0.5, -110, 0.42, -40)
 logoFrame.BackgroundTransparency = 1
 logoFrame.Parent = loadBg
 
 local logoText = Instance.new("TextLabel")
-logoText.Size = UDim2.new(1, 0, 0, 50)
+logoText.Size = UDim2.new(1, 0, 0, 52)
 logoText.BackgroundTransparency = 1
 logoText.Text = "SAKTK"
 logoText.TextColor3 = Color3.fromRGB(0, 240, 200)
 logoText.Font = Enum.Font.GothamBlack
-logoText.TextSize = 42
-logoText.TextXAlignment = Enum.TextXAlignment.Center
+logoText.TextSize = 44
 logoText.Parent = logoFrame
 
 local logoSub = Instance.new("TextLabel")
 logoSub.Size = UDim2.new(1, 0, 0, 20)
-logoSub.Position = UDim2.new(0, 0, 0, 48)
+logoSub.Position = UDim2.new(0, 0, 0, 50)
 logoSub.BackgroundTransparency = 1
-logoSub.Text = "H U B   v 3"
+logoSub.Text = "H U B   v 4"
 logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
 logoSub.Font = Enum.Font.Gotham
 logoSub.TextSize = 11
 logoSub.Parent = logoFrame
 
 local progressBg = Instance.new("Frame")
-progressBg.Size = UDim2.new(0, 260, 0, 4)
-progressBg.Position = UDim2.new(0.5, -130, 0.55, 30)
+progressBg.Size = UDim2.new(0, 280, 0, 4)
+progressBg.Position = UDim2.new(0.5, -140, 0.55, 30)
 progressBg.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 progressBg.BorderSizePixel = 0
 progressBg.Parent = loadBg
@@ -83,29 +82,27 @@ loadStatus.Font = Enum.Font.Gotham
 loadStatus.TextSize = 11
 loadStatus.Parent = loadBg
 
-local loadSteps = {
-    "initializing core",
-    "scanning workspace",
-    "building interface",
-    "ready"
-}
-for i, step in ipairs(loadSteps) do
-    loadStatus.Text = step
-    TweenService:Create(progressFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {Size = UDim2.new(i / #loadSteps, 0, 1, 0)}):Play()
-    task.wait(0.3)
+local steps = {"initializing core", "scanning workspace", "loading modules", "building interface", "ready"}
+for i, s in ipairs(steps) do
+    loadStatus.Text = s
+    TweenService:Create(progressFill, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size = UDim2.new(i / #steps, 0, 1, 0)}):Play()
+    task.wait(0.28)
 end
 task.wait(0.2)
 TweenService:Create(loadBg, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
 for _, v in ipairs(loadBg:GetDescendants()) do
-    if v:IsA("TextLabel") or v:IsA("Frame") then
-        pcall(function() TweenService:Create(v, TweenInfo.new(0.4), {BackgroundTransparency = 1, TextTransparency = 1}):Play() end)
+    if v:IsA("TextLabel") or v:IsA("Frame") or v:IsA("UIStroke") then
+        pcall(function()
+            if v:IsA("UIStroke") then TweenService:Create(v, TweenInfo.new(0.4), {Transparency = 1}):Play()
+            else TweenService:Create(v, TweenInfo.new(0.4), {BackgroundTransparency = 1, TextTransparency = 1}):Play() end
+        end)
     end
 end
 task.wait(0.45)
 loadGui:Destroy()
 
--- ========== MAIN GUI (horizontal) ==========
+-- ========== MAIN GUI ==========
 local gui = Instance.new("ScreenGui")
 gui.Name = "SAKTK_Hub"
 gui.IgnoreGuiInset = true
@@ -114,39 +111,37 @@ gui.DisplayOrder = 100
 gui.Parent = CoreGui
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 460, 0, 240)
-main.Position = UDim2.new(0.5, -230, 0.3, 0)
+main.Size = UDim2.new(0, 480, 0, 260)
+main.Position = UDim2.new(0.5, -240, 0.3, 0)
 main.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
 main.BorderSizePixel = 0
 main.Active = true
 main.Parent = gui
-
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(0, 240, 200)
-stroke.Thickness = 1
-stroke.Transparency = 0.7
-stroke.Parent = main
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(0, 240, 200)
+mainStroke.Thickness = 1
+mainStroke.Transparency = 0.75
+mainStroke.Parent = main
 
--- header (full drag across entire gui via main.Active + InputBegan)
 local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 36)
+header.Size = UDim2.new(1, 0, 0, 38)
 header.BackgroundColor3 = Color3.fromRGB(16, 16, 24)
 header.BorderSizePixel = 0
 header.Parent = main
 Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
 
 local hGrad = Instance.new("UIGradient")
-hGrad.Color = ColorSequence.new(Color3.fromRGB(20, 40, 50), Color3.fromRGB(40, 15, 50))
+hGrad.Color = ColorSequence.new(Color3.fromRGB(18, 42, 52), Color3.fromRGB(42, 14, 52))
 hGrad.Rotation = 90
 hGrad.Parent = header
 
 local hTitle = Instance.new("TextLabel")
-hTitle.Size = UDim2.new(1, -80, 1, 0)
+hTitle.Size = UDim2.new(1, -90, 1, 0)
 hTitle.Position = UDim2.new(0, 14, 0, 0)
 hTitle.BackgroundTransparency = 1
-hTitle.Text = "SAKTK"
+hTitle.Text = "SAKTK  HUB"
 hTitle.TextColor3 = Color3.fromRGB(0, 240, 200)
 hTitle.Font = Enum.Font.GothamBold
 hTitle.TextSize = 14
@@ -155,7 +150,7 @@ hTitle.Parent = header
 
 local collapseBtn = Instance.new("TextButton")
 collapseBtn.Size = UDim2.new(0, 26, 0, 26)
-collapseBtn.Position = UDim2.new(1, -62, 0, 5)
+collapseBtn.Position = UDim2.new(1, -62, 0, 6)
 collapseBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 44)
 collapseBtn.Text = "—"
 collapseBtn.TextColor3 = Color3.fromRGB(0, 240, 200)
@@ -167,7 +162,7 @@ Instance.new("UICorner", collapseBtn).CornerRadius = UDim.new(0, 6)
 
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 26, 0, 26)
-closeBtn.Position = UDim2.new(1, -32, 0, 5)
+closeBtn.Position = UDim2.new(1, -32, 0, 6)
 closeBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 26)
 closeBtn.Text = "✕"
 closeBtn.TextColor3 = Color3.fromRGB(255, 100, 120)
@@ -177,16 +172,14 @@ closeBtn.BorderSizePixel = 0
 closeBtn.Parent = header
 Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 
--- horizontal layout: left tabs, right content
 local body = Instance.new("Frame")
-body.Size = UDim2.new(1, -16, 1, -48)
-body.Position = UDim2.new(0, 8, 0, 42)
+body.Size = UDim2.new(1, -16, 1, -50)
+body.Position = UDim2.new(0, 8, 0, 44)
 body.BackgroundTransparency = 1
 body.Parent = main
 
--- left tab bar
 local tabBar = Instance.new("Frame")
-tabBar.Size = UDim2.new(0, 90, 1, 0)
+tabBar.Size = UDim2.new(0, 96, 1, 0)
 tabBar.BackgroundTransparency = 1
 tabBar.Parent = body
 
@@ -194,18 +187,16 @@ local tabLayout = Instance.new("UIListLayout")
 tabLayout.Padding = UDim.new(0, 4)
 tabLayout.Parent = tabBar
 
--- right content area
 local contentArea = Instance.new("Frame")
-contentArea.Size = UDim2.new(1, -98, 1, 0)
-contentArea.Position = UDim2.new(0, 98, 0, 0)
+contentArea.Size = UDim2.new(1, -104, 1, 0)
+contentArea.Position = UDim2.new(0, 104, 0, 0)
 contentArea.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
 contentArea.BorderSizePixel = 0
 contentArea.Parent = body
 Instance.new("UICorner", contentArea).CornerRadius = UDim.new(0, 8)
 
--- ========== TAB SYSTEM ==========
+-- ========== TABS ==========
 local tabs = {}
-local activeTab = nil
 
 local function createTab(name)
     local btn = Instance.new("TextButton")
@@ -230,12 +221,12 @@ local function createTab(name)
     page.Visible = false
     page.Parent = contentArea
 
-    local pageLayout = Instance.new("UIListLayout")
-    pageLayout.Padding = UDim.new(0, 5)
-    pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    pageLayout.Parent = page
-    pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 8)
+    local pl = Instance.new("UIListLayout")
+    pl.Padding = UDim.new(0, 5)
+    pl.SortOrder = Enum.SortOrder.LayoutOrder
+    pl.Parent = page
+    pl:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0, 0, 0, pl.AbsoluteContentSize.Y + 8)
     end)
 
     tabs[name] = {btn = btn, page = page}
@@ -245,22 +236,21 @@ local function createTab(name)
             t.btn.BackgroundColor3 = (n == name) and Color3.fromRGB(0, 180, 150) or Color3.fromRGB(20, 20, 30)
             t.btn.TextColor3 = (n == name) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 160)
         end
-        activeTab = name
     end)
     return page
 end
 
 local visualPage = createTab("Visual")
 local weaponPage = createTab("Weapons")
-local ghostPage = createTab("Ghost")
+local combatPage = createTab("Combat")
+local ghostPage  = createTab("Ghost")
+local miscPage   = createTab("Misc")
 
--- activate first tab
-if tabs["Visual"] then
-    for n, t in pairs(tabs) do
-        t.page.Visible = (n == "Visual")
-        t.btn.BackgroundColor3 = (n == "Visual") and Color3.fromRGB(0, 180, 150) or Color3.fromRGB(20, 20, 30)
-        t.btn.TextColor3 = (n == "Visual") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 160)
-    end
+-- activate first
+for n, t in pairs(tabs) do
+    t.page.Visible = (n == "Visual")
+    t.btn.BackgroundColor3 = (n == "Visual") and Color3.fromRGB(0, 180, 150) or Color3.fromRGB(20, 20, 30)
+    t.btn.TextColor3 = (n == "Visual") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 160)
 end
 
 -- ========== UI BUILDERS ==========
@@ -305,10 +295,97 @@ local function makeToggle(parent, text, default, callback)
     return row
 end
 
--- ========== ESP ==========
-local espEnabled = false
-local espDrawings = {}
+local function makeButton(parent, text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(0, 240, 200)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
 
+local function makeSlider(parent, text, min, max, default, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 44)
+    row.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    row.BorderSizePixel = 0
+    row.Parent = parent
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -60, 0, 18)
+    lbl.Position = UDim2.new(0, 10, 0, 4)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text .. ": " .. default
+    lbl.TextColor3 = Color3.fromRGB(210, 210, 225)
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = row
+
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(1, -20, 0, 6)
+    bar.Position = UDim2.new(0, 10, 0, 28)
+    bar.BackgroundColor3 = Color3.fromRGB(30, 30, 44)
+    bar.BorderSizePixel = 0
+    bar.Parent = row
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(0, 240, 200)
+    fill.BorderSizePixel = 0
+    fill.Parent = bar
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+    local function setValue(x)
+        local rel = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+        local val = math.floor(min + (max - min) * rel)
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        lbl.Text = text .. ": " .. val
+        callback(val)
+    end
+    bar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            setValue(input.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            setValue(input.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    return row
+end
+
+-- ========== STATE ==========
+local espEnabled = false
+local invisEnabled = false
+local infAmmoEnabled = false
+local fastReloadEnabled = false
+local noRecoilEnabled = false
+local rapidFireEnabled = false
+local hitboxEnabled = false
+local ghostSpeed = false
+local noClipEnabled = false
+local speedValue = 22
+local espDrawings = {}
+local invisParts = {}
+
+-- ========== ESP ==========
 local function clearESP()
     for _, d in pairs(espDrawings) do
         d.box:Remove(); d.name:Remove()
@@ -339,40 +416,32 @@ local function updateESP()
         end
         local head = char:FindFirstChild("Head")
         if not head then continue end
-        local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-        local footPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
-        local height = math.abs(headPos.Y - footPos.Y)
-        local width = height * 0.6
-
+        local hp = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+        local fp = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+        local h = math.abs(hp.Y - fp.Y)
+        local w = h * 0.6
         local isKiller = plr.Team and (plr.Team.Name:lower():find("killer") or plr.Team.Name:lower():find("murder"))
         local isJugg = plr.Team and plr.Team.Name:lower():find("jugg")
         local color = isJugg and Color3.fromRGB(200, 0, 255) or (isKiller and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 255, 100))
-
         d.box.Color = color
-        d.box.Size = Vector2.new(width, height)
-        d.box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
+        d.box.Size = Vector2.new(w, h)
+        d.box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
         d.box.Visible = true
         d.name.Text = plr.Name
         d.name.Color = color
-        d.name.Position = Vector2.new(pos.X, pos.Y - height/2 - 14)
+        d.name.Position = Vector2.new(pos.X, pos.Y - h/2 - 14)
         d.name.Visible = true
     end
 end
 
--- ========== INVISIBILITY (toggleable, revert works) ==========
-local invisEnabled = false
-local invisRenderConn
-local invisParts = {}
-
+-- ========== INVISIBILITY ==========
 local function applyInvisibility(on)
     local char = LocalPlayer.Character
     if not char then return end
     for _, part in ipairs(char:GetDescendants()) do
         if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
             if on then
-                if part.Transparency < 1 then
-                    invisParts[part] = part.Transparency
-                end
+                if part.Transparency < 1 then invisParts[part] = part.Transparency end
                 part.Transparency = 1
             else
                 part.Transparency = invisParts[part] or 0
@@ -380,9 +449,7 @@ local function applyInvisibility(on)
         end
         if part:IsA("Decal") or part:IsA("Texture") then
             if on then
-                if part.Transparency < 1 then
-                    invisParts[part] = part.Transparency
-                end
+                if part.Transparency < 1 then invisParts[part] = part.Transparency end
                 part.Transparency = 1
             else
                 part.Transparency = invisParts[part] or 0
@@ -392,60 +459,91 @@ local function applyInvisibility(on)
     if not on then invisParts = {} end
 end
 
-local function setupInvisConn()
-    if invisRenderConn then invisRenderConn:Disconnect() end
-    invisRenderConn = RunService.RenderStepped:Connect(function()
-        if invisEnabled then
-            applyInvisibility(true)
+-- ========== INFINITE AMMO ==========
+local function getAmmoValues(tool)
+    local vals = {}
+    for _, obj in ipairs(tool:GetDescendants()) do
+        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+            local n = obj.Name:lower()
+            if n:match("ammo") or n:match("mag") or n:match("reserve") or n:match("clip") then
+                table.insert(vals, obj)
+            end
         end
-    end)
+    end
+    return vals
 end
 
--- ========== GHOST MODE (extra functions for ghost tab) ==========
-local ghostSpeed = false
-local noClipEnabled = false
-local speedValue = 22
+-- ========== MAIN LOOP ==========
+RunService.RenderStepped:Connect(function()
+    if espEnabled then updateESP() end
+    if invisEnabled then applyInvisibility(true) end
 
-local ghostSpeedConn
-local function startGhostSpeed()
-    if ghostSpeedConn then ghostSpeedConn:Disconnect() end
-    ghostSpeedConn = RunService.Heartbeat:Connect(function()
-        if not ghostSpeed then return end
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.WalkSpeed = speedValue
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local tool = char and char:FindFirstChildOfClass("Tool")
+
+    if infAmmoEnabled and tool then
+        for _, v in ipairs(getAmmoValues(tool)) do
+            local n = v.Name:lower()
+            if n:match("ammo") or n:match("clip") or n:match("mag") then
+                v.Value = math.max(v.Value, 999)
+            end
         end
-    end)
-end
+        local maxAmmo = tool:FindFirstChild("MaxAmmo") or tool:FindFirstChild("MaxClip")
+        if maxAmmo and (maxAmmo:IsA("IntValue") or maxAmmo:IsA("NumberValue")) then
+            maxAmmo.Value = math.max(maxAmmo.Value, 999)
+        end
+    end
 
-local noclipConn
-local function setupNoclip()
-    if noclipConn then noclipConn:Disconnect() end
-    noclipConn = RunService.Stepped:Connect(function()
-        if not noClipEnabled then return end
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
+    if fastReloadEnabled and tool then
+        local reload = tool:FindFirstChild("Reload") or tool:FindFirstChild("ReloadEvent")
+        if reload and reload:IsA("RemoteEvent") then
+            pcall(function() reload:FireServer() end)
+        end
+    end
+
+    if noRecoilEnabled and tool then
+        for _, d in ipairs(tool:GetDescendants()) do
+            if d:IsA("NumberValue") and d.Name:lower():match("recoil") then d.Value = 0 end
+        end
+    end
+
+    if rapidFireEnabled and tool then
+        local fr = tool:FindFirstChild("FireRate") or tool:FindFirstChild("FireRateValue")
+        if fr and (fr:IsA("NumberValue") or fr:IsA("IntValue")) then fr.Value = 0.01 end
+    end
+
+    if hitboxEnabled then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.Size = Vector3.new(10, 10, 10)
+                    hrp.Transparency = 0.5
+                    hrp.CanCollide = false
                 end
             end
         end
-    end)
-end
+    end
 
--- ========== WEAPON LIST (collapsible within page) ==========
+    if ghostSpeed and hum then hum.WalkSpeed = speedValue end
+
+    if noClipEnabled and char then
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
+        end
+    end
+end)
+
+-- ========== WEAPON LIST ==========
 local weaponListExpanded = true
 local weaponListContainer
-local weaponScroll
 
 local function getWeaponsOnMap()
     local weapons = {}
     for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Tool") and obj.Parent and obj.Parent:IsA("Model") then
-            local handle = obj:FindFirstChild("Handle")
-            if handle then table.insert(weapons, obj) end
+        if obj:IsA("Tool") and obj.Parent and obj.Parent:IsA("Model") and obj:FindFirstChild("Handle") then
+            table.insert(weapons, obj)
         end
     end
     return weapons
@@ -462,17 +560,15 @@ local function tryGrabWeapon(tool)
     if prompt then pcall(function() fireproximityprompt(prompt) end) end
     local cd = tool:FindFirstChildOfClass("ClickDetector")
     if cd then pcall(function() fireclickdetector(cd) end) end
-    if handle and hrp then
-        pcall(function() firetouchinterest(hrp, handle, 0) end)
-        task.wait(0.05)
-        pcall(function() firetouchinterest(hrp, handle, 1) end)
-    end
+    pcall(function() firetouchinterest(hrp, handle, 0) end)
+    task.wait(0.05)
+    pcall(function() firetouchinterest(hrp, handle, 1) end)
 end
 
 local function rebuildWeaponList()
     if weaponListContainer then weaponListContainer:Destroy() end
     weaponListContainer = Instance.new("Frame")
-    weaponListContainer.Size = UDim2.new(1, 0, 0, 30)
+    weaponListContainer.Size = UDim2.new(1, 0, 0, 162)
     weaponListContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     weaponListContainer.BorderSizePixel = 0
     weaponListContainer.ClipsDescendants = true
@@ -520,7 +616,7 @@ local function rebuildWeaponList()
     Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 4)
 
     local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Size = UDim2.new(1, -8, 0, 130)
+    scrollFrame.Size = UDim2.new(1, -8, 0, 126)
     scrollFrame.Position = UDim2.new(0, 4, 0, 32)
     scrollFrame.BackgroundTransparency = 1
     scrollFrame.BorderSizePixel = 0
@@ -528,7 +624,6 @@ local function rebuildWeaponList()
     scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 240, 200)
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     scrollFrame.Parent = weaponListContainer
-    weaponScroll = scrollFrame
 
     local sl = Instance.new("UIListLayout")
     sl.Padding = UDim.new(0, 3)
@@ -568,50 +663,68 @@ local function rebuildWeaponList()
     end
 
     refreshBtn.MouseButton1Click:Connect(populate)
-
     expandBtn.MouseButton1Click:Connect(function()
         weaponListExpanded = not weaponListExpanded
         expandBtn.Text = weaponListExpanded and "▼" or "▲"
         TweenService:Create(weaponListContainer, TweenInfo.new(0.2), {
-            Size = weaponListExpanded and UDim2.new(1, 0, 0, 30 + 132) or UDim2.new(1, 0, 0, 30)
+            Size = weaponListExpanded and UDim2.new(1, 0, 0, 162) or UDim2.new(1, 0, 0, 30)
         }):Play()
     end)
-
     populate()
-    -- auto expand on first build
-    if weaponListExpanded then
-        weaponListContainer.Size = UDim2.new(1, 0, 0, 30 + 132)
-    end
 end
 
--- ========== BUILD PAGES ==========
+-- ========== BUILD UI ==========
+-- Visual
 makeToggle(visualPage, "ESP", false, function(s)
     espEnabled = s
     if s then for _, p in ipairs(Players:GetPlayers()) do createESP(p) end else clearESP() end
 end)
-
+makeToggle(visualPage, "Hitbox Expander", false, function(s) hitboxEnabled = s end)
 makeToggle(visualPage, "Invisibility (local)", false, function(s)
     invisEnabled = s
     applyInvisibility(s)
-    if s then setupInvisConn() end
 end)
 
--- Ghost page
-makeToggle(ghostPage, "Speed Boost", false, function(s)
-    ghostSpeed = s
-    if s then startGhostSpeed() end
+-- Weapons
+makeToggle(weaponPage, "Infinite Ammo", false, function(s) infAmmoEnabled = s end)
+makeToggle(weaponPage, "Fast Reload", false, function(s) fastReloadEnabled = s end)
+makeToggle(weaponPage, "Rapid Fire", false, function(s) rapidFireEnabled = s end)
+makeToggle(weaponPage, "No Recoil", false, function(s) noRecoilEnabled = s end)
+makeButton(weaponPage, "Teleport to All Weapons", function()
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Tool") and obj:FindFirstChild("Handle") then
+            hrp.CFrame = CFrame.new(obj.Handle.Position + Vector3.new(0, 2, 0))
+            task.wait(0.05)
+        end
+    end
 end)
-
-makeToggle(ghostPage, "NoClip", false, function(s)
-    noClipEnabled = s
-    if s then setupNoclip() end
-end)
-
--- weapon page
 rebuildWeaponList()
 
--- ========== DRAG (whole GUI, not just header) ==========
-local dragging, dragInput, dragStart, startPos
+-- Combat
+makeSlider(combatPage, "Walk Speed", 16, 120, 22, function(v) speedValue = v end)
+makeToggle(combatPage, "Speed Boost", false, function(s) ghostSpeed = s end)
+makeToggle(combatPage, "NoClip", false, function(s) noClipEnabled = s end)
+
+-- Ghost
+makeToggle(ghostPage, "Auto-Respawn (placeholder)", false, function(s) end)
+
+-- Misc
+makeButton(miscPage, "Rejoin Server", function()
+    game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+end)
+makeButton(miscPage, "Server Hop", function()
+    local ts = game:GetService("TeleportService")
+    local code = game:GetService("HttpService"):GenerateGUID(false)
+    pcall(function()
+        ts:TeleportToPlaceInstance(game.PlaceId, code, LocalPlayer)
+    end)
+end)
+
+-- ========== DRAG ==========
+local dragging, dragStart, startPos
 main.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
@@ -631,23 +744,15 @@ end)
 
 -- ========== COLLAPSE / CLOSE ==========
 local collapsed = false
-local fullSize = UDim2.new(0, 460, 0, 240)
+local fullSize = UDim2.new(0, 480, 0, 260)
 collapseBtn.MouseButton1Click:Connect(function()
     collapsed = not collapsed
     body.Visible = not collapsed
     TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {Size = collapsed and UDim2.new(0, 460, 0, 36) or fullSize}):Play()
+        {Size = collapsed and UDim2.new(0, 480, 0, 38) or fullSize}):Play()
     collapseBtn.Text = collapsed and "+" or "—"
 end)
-
-closeBtn.MouseButton1Click:Connect(function()
-    gui:Destroy()
-end)
-
--- ========== RENDER LOOP ==========
-RunService.RenderStepped:Connect(function()
-    if espEnabled then updateESP() end
-end)
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
 -- ========== PLAYERS HOOK ==========
 Players.PlayerAdded:Connect(function(p) if espEnabled then createESP(p) end end)
@@ -658,4 +763,4 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
-print("[SAKTK HUB v3] loaded — horizontal, collapsible, local invisibility")
+print("[SAKTK HUB v4] loaded")
