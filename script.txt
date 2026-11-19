@@ -1,0 +1,661 @@
+-- SAKTKIA51 HUB v3 — horizontal mobile GUI, collapsible weapon list, section tabs
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+-- ========== IMPROVED LOADING SCREEN ==========
+local loadGui = Instance.new("ScreenGui")
+loadGui.Name = "SAKTK_Loader"
+loadGui.IgnoreGuiInset = true
+loadGui.ResetOnSpawn = false
+loadGui.DisplayOrder = 999
+loadGui.Parent = CoreGui
+
+local loadBg = Instance.new("Frame")
+loadBg.Size = UDim2.new(1, 0, 1, 0)
+loadBg.BackgroundColor3 = Color3.fromRGB(6, 6, 10)
+loadBg.BorderSizePixel = 0
+loadBg.Parent = loadGui
+
+-- animated accent line
+local accentLine = Instance.new("Frame")
+accentLine.Size = UDim2.new(0, 0, 0, 2)
+accentLine.Position = UDim2.new(0, 0, 0.45, 0)
+accentLine.BackgroundColor3 = Color3.fromRGB(0, 240, 200)
+accentLine.BorderSizePixel = 0
+accentLine.Parent = loadBg
+TweenService:Create(accentLine, TweenInfo.new(0.8), {Size = UDim2.new(1, 0, 0, 2)}):Play()
+
+local logoFrame = Instance.new("Frame")
+logoFrame.Size = UDim2.new(0, 200, 0, 80)
+logoFrame.Position = UDim2.new(0.5, -100, 0.42, -40)
+logoFrame.BackgroundTransparency = 1
+logoFrame.Parent = loadBg
+
+local logoText = Instance.new("TextLabel")
+logoText.Size = UDim2.new(1, 0, 0, 50)
+logoText.BackgroundTransparency = 1
+logoText.Text = "SAKTK"
+logoText.TextColor3 = Color3.fromRGB(0, 240, 200)
+logoText.Font = Enum.Font.GothamBlack
+logoText.TextSize = 42
+logoText.TextXAlignment = Enum.TextXAlignment.Center
+logoText.Parent = logoFrame
+
+local logoSub = Instance.new("TextLabel")
+logoSub.Size = UDim2.new(1, 0, 0, 20)
+logoSub.Position = UDim2.new(0, 0, 0, 48)
+logoSub.BackgroundTransparency = 1
+logoSub.Text = "H U B   v 3"
+logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
+logoSub.Font = Enum.Font.Gotham
+logoSub.TextSize = 11
+logoSub.Parent = logoFrame
+
+local progressBg = Instance.new("Frame")
+progressBg.Size = UDim2.new(0, 260, 0, 4)
+progressBg.Position = UDim2.new(0.5, -130, 0.55, 30)
+progressBg.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+progressBg.BorderSizePixel = 0
+progressBg.Parent = loadBg
+Instance.new("UICorner", progressBg).CornerRadius = UDim.new(1, 0)
+
+local progressFill = Instance.new("Frame")
+progressFill.Size = UDim2.new(0, 0, 1, 0)
+progressFill.BackgroundColor3 = Color3.fromRGB(0, 240, 200)
+progressFill.BorderSizePixel = 0
+progressFill.Parent = progressBg
+Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
+
+local loadStatus = Instance.new("TextLabel")
+loadStatus.Size = UDim2.new(1, 0, 0, 16)
+loadStatus.Position = UDim2.new(0, 0, 0.55, 44)
+loadStatus.BackgroundTransparency = 1
+loadStatus.Text = "initializing"
+loadStatus.TextColor3 = Color3.fromRGB(90, 90, 110)
+loadStatus.Font = Enum.Font.Gotham
+loadStatus.TextSize = 11
+loadStatus.Parent = loadBg
+
+local loadSteps = {
+    "initializing core",
+    "scanning workspace",
+    "building interface",
+    "ready"
+}
+for i, step in ipairs(loadSteps) do
+    loadStatus.Text = step
+    TweenService:Create(progressFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size = UDim2.new(i / #loadSteps, 0, 1, 0)}):Play()
+    task.wait(0.3)
+end
+task.wait(0.2)
+TweenService:Create(loadBg, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+for _, v in ipairs(loadBg:GetDescendants()) do
+    if v:IsA("TextLabel") or v:IsA("Frame") then
+        pcall(function() TweenService:Create(v, TweenInfo.new(0.4), {BackgroundTransparency = 1, TextTransparency = 1}):Play() end)
+    end
+end
+task.wait(0.45)
+loadGui:Destroy()
+
+-- ========== MAIN GUI (horizontal) ==========
+local gui = Instance.new("ScreenGui")
+gui.Name = "SAKTK_Hub"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 100
+gui.Parent = CoreGui
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 460, 0, 240)
+main.Position = UDim2.new(0.5, -230, 0.3, 0)
+main.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+main.BorderSizePixel = 0
+main.Active = true
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(0, 240, 200)
+stroke.Thickness = 1
+stroke.Transparency = 0.7
+stroke.Parent = main
+
+-- header (full drag across entire gui via main.Active + InputBegan)
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 36)
+header.BackgroundColor3 = Color3.fromRGB(16, 16, 24)
+header.BorderSizePixel = 0
+header.Parent = main
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
+
+local hGrad = Instance.new("UIGradient")
+hGrad.Color = ColorSequence.new(Color3.fromRGB(20, 40, 50), Color3.fromRGB(40, 15, 50))
+hGrad.Rotation = 90
+hGrad.Parent = header
+
+local hTitle = Instance.new("TextLabel")
+hTitle.Size = UDim2.new(1, -80, 1, 0)
+hTitle.Position = UDim2.new(0, 14, 0, 0)
+hTitle.BackgroundTransparency = 1
+hTitle.Text = "SAKTK"
+hTitle.TextColor3 = Color3.fromRGB(0, 240, 200)
+hTitle.Font = Enum.Font.GothamBold
+hTitle.TextSize = 14
+hTitle.TextXAlignment = Enum.TextXAlignment.Left
+hTitle.Parent = header
+
+local collapseBtn = Instance.new("TextButton")
+collapseBtn.Size = UDim2.new(0, 26, 0, 26)
+collapseBtn.Position = UDim2.new(1, -62, 0, 5)
+collapseBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 44)
+collapseBtn.Text = "—"
+collapseBtn.TextColor3 = Color3.fromRGB(0, 240, 200)
+collapseBtn.Font = Enum.Font.GothamBold
+collapseBtn.TextSize = 14
+collapseBtn.BorderSizePixel = 0
+collapseBtn.Parent = header
+Instance.new("UICorner", collapseBtn).CornerRadius = UDim.new(0, 6)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 26, 0, 26)
+closeBtn.Position = UDim2.new(1, -32, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 26)
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.fromRGB(255, 100, 120)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 13
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = header
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+-- horizontal layout: left tabs, right content
+local body = Instance.new("Frame")
+body.Size = UDim2.new(1, -16, 1, -48)
+body.Position = UDim2.new(0, 8, 0, 42)
+body.BackgroundTransparency = 1
+body.Parent = main
+
+-- left tab bar
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(0, 90, 1, 0)
+tabBar.BackgroundTransparency = 1
+tabBar.Parent = body
+
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.Padding = UDim.new(0, 4)
+tabLayout.Parent = tabBar
+
+-- right content area
+local contentArea = Instance.new("Frame")
+contentArea.Size = UDim2.new(1, -98, 1, 0)
+contentArea.Position = UDim2.new(0, 98, 0, 0)
+contentArea.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+contentArea.BorderSizePixel = 0
+contentArea.Parent = body
+Instance.new("UICorner", contentArea).CornerRadius = UDim.new(0, 8)
+
+-- ========== TAB SYSTEM ==========
+local tabs = {}
+local activeTab = nil
+
+local function createTab(name)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(140, 140, 160)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    btn.Parent = tabBar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, -8, 1, -8)
+    page.Position = UDim2.new(0, 4, 0, 4)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = Color3.fromRGB(0, 240, 200)
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.Visible = false
+    page.Parent = contentArea
+
+    local pageLayout = Instance.new("UIListLayout")
+    pageLayout.Padding = UDim.new(0, 5)
+    pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    pageLayout.Parent = page
+    pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 8)
+    end)
+
+    tabs[name] = {btn = btn, page = page}
+    btn.MouseButton1Click:Connect(function()
+        for n, t in pairs(tabs) do
+            t.page.Visible = (n == name)
+            t.btn.BackgroundColor3 = (n == name) and Color3.fromRGB(0, 180, 150) or Color3.fromRGB(20, 20, 30)
+            t.btn.TextColor3 = (n == name) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 160)
+        end
+        activeTab = name
+    end)
+    return page
+end
+
+local visualPage = createTab("Visual")
+local weaponPage = createTab("Weapons")
+local ghostPage = createTab("Ghost")
+
+-- activate first tab
+if tabs["Visual"] then
+    for n, t in pairs(tabs) do
+        t.page.Visible = (n == "Visual")
+        t.btn.BackgroundColor3 = (n == "Visual") and Color3.fromRGB(0, 180, 150) or Color3.fromRGB(20, 20, 30)
+        t.btn.TextColor3 = (n == "Visual") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(140, 140, 160)
+    end
+end
+
+-- ========== UI BUILDERS ==========
+local function makeToggle(parent, text, default, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 30)
+    row.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    row.BorderSizePixel = 0
+    row.Parent = parent
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -60, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(210, 210, 225)
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 12
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = row
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 38, 0, 20)
+    btn.Position = UDim2.new(1, -46, 0, 5)
+    btn.BackgroundColor3 = default and Color3.fromRGB(0, 180, 150) or Color3.fromRGB(40, 40, 55)
+    btn.Text = default and "ON" or "OFF"
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    btn.BorderSizePixel = 0
+    btn.Parent = row
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    local state = default
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.BackgroundColor3 = state and Color3.fromRGB(0, 180, 150) or Color3.fromRGB(40, 40, 55)
+        btn.Text = state and "ON" or "OFF"
+        callback(state)
+    end)
+    return row
+end
+
+-- ========== ESP ==========
+local espEnabled = false
+local espDrawings = {}
+
+local function clearESP()
+    for _, d in pairs(espDrawings) do
+        d.box:Remove(); d.name:Remove()
+    end
+    espDrawings = {}
+end
+
+local function createESP(plr)
+    if plr == LocalPlayer or espDrawings[plr] then return end
+    local box = Drawing.new("Square")
+    box.Thickness = 1; box.Filled = false; box.Transparency = 1
+    local name = Drawing.new("Text")
+    name.Size = 13; name.Center = true; name.Outline = true; name.Transparency = 1
+    espDrawings[plr] = {box = box, name = name}
+end
+
+local function updateESP()
+    for plr, d in pairs(espDrawings) do
+        local char = plr.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if not (hrp and hum and hum.Health > 0 and espEnabled) then
+            d.box.Visible = false; d.name.Visible = false; continue
+        end
+        local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+        if not onScreen then
+            d.box.Visible = false; d.name.Visible = false; continue
+        end
+        local head = char:FindFirstChild("Head")
+        if not head then continue end
+        local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+        local footPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+        local height = math.abs(headPos.Y - footPos.Y)
+        local width = height * 0.6
+
+        local isKiller = plr.Team and (plr.Team.Name:lower():find("killer") or plr.Team.Name:lower():find("murder"))
+        local isJugg = plr.Team and plr.Team.Name:lower():find("jugg")
+        local color = isJugg and Color3.fromRGB(200, 0, 255) or (isKiller and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 255, 100))
+
+        d.box.Color = color
+        d.box.Size = Vector2.new(width, height)
+        d.box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
+        d.box.Visible = true
+        d.name.Text = plr.Name
+        d.name.Color = color
+        d.name.Position = Vector2.new(pos.X, pos.Y - height/2 - 14)
+        d.name.Visible = true
+    end
+end
+
+-- ========== INVISIBILITY (toggleable, revert works) ==========
+local invisEnabled = false
+local invisRenderConn
+local invisParts = {}
+
+local function applyInvisibility(on)
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            if on then
+                if part.Transparency < 1 then
+                    invisParts[part] = part.Transparency
+                end
+                part.Transparency = 1
+            else
+                part.Transparency = invisParts[part] or 0
+            end
+        end
+        if part:IsA("Decal") or part:IsA("Texture") then
+            if on then
+                if part.Transparency < 1 then
+                    invisParts[part] = part.Transparency
+                end
+                part.Transparency = 1
+            else
+                part.Transparency = invisParts[part] or 0
+            end
+        end
+    end
+    if not on then invisParts = {} end
+end
+
+local function setupInvisConn()
+    if invisRenderConn then invisRenderConn:Disconnect() end
+    invisRenderConn = RunService.RenderStepped:Connect(function()
+        if invisEnabled then
+            applyInvisibility(true)
+        end
+    end)
+end
+
+-- ========== GHOST MODE (extra functions for ghost tab) ==========
+local ghostSpeed = false
+local noClipEnabled = false
+local speedValue = 22
+
+local ghostSpeedConn
+local function startGhostSpeed()
+    if ghostSpeedConn then ghostSpeedConn:Disconnect() end
+    ghostSpeedConn = RunService.Heartbeat:Connect(function()
+        if not ghostSpeed then return end
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = speedValue
+        end
+    end)
+end
+
+local noclipConn
+local function setupNoclip()
+    if noclipConn then noclipConn:Disconnect() end
+    noclipConn = RunService.Stepped:Connect(function()
+        if not noClipEnabled then return end
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+-- ========== WEAPON LIST (collapsible within page) ==========
+local weaponListExpanded = true
+local weaponListContainer
+local weaponScroll
+
+local function getWeaponsOnMap()
+    local weapons = {}
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Tool") and obj.Parent and obj.Parent:IsA("Model") then
+            local handle = obj:FindFirstChild("Handle")
+            if handle then table.insert(weapons, obj) end
+        end
+    end
+    return weapons
+end
+
+local function tryGrabWeapon(tool)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local handle = tool:FindFirstChild("Handle")
+    if not (hrp and handle) then return end
+    hrp.CFrame = CFrame.new(handle.Position + Vector3.new(0, 2, 0))
+    task.wait(0.12)
+    local prompt = tool:FindFirstChildOfClass("ProximityPrompt")
+    if prompt then pcall(function() fireproximityprompt(prompt) end) end
+    local cd = tool:FindFirstChildOfClass("ClickDetector")
+    if cd then pcall(function() fireclickdetector(cd) end) end
+    if handle and hrp then
+        pcall(function() firetouchinterest(hrp, handle, 0) end)
+        task.wait(0.05)
+        pcall(function() firetouchinterest(hrp, handle, 1) end)
+    end
+end
+
+local function rebuildWeaponList()
+    if weaponListContainer then weaponListContainer:Destroy() end
+    weaponListContainer = Instance.new("Frame")
+    weaponListContainer.Size = UDim2.new(1, 0, 0, 30)
+    weaponListContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    weaponListContainer.BorderSizePixel = 0
+    weaponListContainer.ClipsDescendants = true
+    weaponListContainer.Parent = weaponPage
+    Instance.new("UICorner", weaponListContainer).CornerRadius = UDim.new(0, 6)
+
+    local hdr = Instance.new("Frame")
+    hdr.Size = UDim2.new(1, 0, 0, 30)
+    hdr.BackgroundTransparency = 1
+    hdr.Parent = weaponListContainer
+
+    local hdrLbl = Instance.new("TextLabel")
+    hdrLbl.Size = UDim2.new(1, -80, 1, 0)
+    hdrLbl.Position = UDim2.new(0, 10, 0, 0)
+    hdrLbl.BackgroundTransparency = 1
+    hdrLbl.Text = "Weapons on map"
+    hdrLbl.TextColor3 = Color3.fromRGB(160, 160, 180)
+    hdrLbl.Font = Enum.Font.Gotham
+    hdrLbl.TextSize = 11
+    hdrLbl.TextXAlignment = Enum.TextXAlignment.Left
+    hdrLbl.Parent = hdr
+
+    local expandBtn = Instance.new("TextButton")
+    expandBtn.Size = UDim2.new(0, 30, 0, 20)
+    expandBtn.Position = UDim2.new(1, -38, 0, 5)
+    expandBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 150)
+    expandBtn.Text = "▼"
+    expandBtn.TextColor3 = Color3.new(1,1,1)
+    expandBtn.Font = Enum.Font.GothamBold
+    expandBtn.TextSize = 10
+    expandBtn.BorderSizePixel = 0
+    expandBtn.Parent = hdr
+    Instance.new("UICorner", expandBtn).CornerRadius = UDim.new(0, 4)
+
+    local refreshBtn = Instance.new("TextButton")
+    refreshBtn.Size = UDim2.new(0, 26, 0, 20)
+    refreshBtn.Position = UDim2.new(1, -68, 0, 5)
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    refreshBtn.Text = "⟳"
+    refreshBtn.TextColor3 = Color3.fromRGB(0, 240, 200)
+    refreshBtn.Font = Enum.Font.GothamBold
+    refreshBtn.TextSize = 12
+    refreshBtn.BorderSizePixel = 0
+    refreshBtn.Parent = hdr
+    Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 4)
+
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, -8, 0, 130)
+    scrollFrame.Position = UDim2.new(0, 4, 0, 32)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.BorderSizePixel = 0
+    scrollFrame.ScrollBarThickness = 2
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 240, 200)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.Parent = weaponListContainer
+    weaponScroll = scrollFrame
+
+    local sl = Instance.new("UIListLayout")
+    sl.Padding = UDim.new(0, 3)
+    sl.Parent = scrollFrame
+
+    local function populate()
+        for _, c in ipairs(scrollFrame:GetChildren()) do
+            if c:IsA("TextButton") or c:IsA("TextLabel") then c:Destroy() end
+        end
+        local weapons = getWeaponsOnMap()
+        if #weapons == 0 then
+            local none = Instance.new("TextLabel")
+            none.Size = UDim2.new(1, 0, 0, 24)
+            none.BackgroundTransparency = 1
+            none.Text = "no weapons found"
+            none.TextColor3 = Color3.fromRGB(100, 100, 120)
+            none.Font = Enum.Font.Gotham
+            none.TextSize = 11
+            none.Parent = scrollFrame
+        else
+            for _, tool in ipairs(weapons) do
+                local b = Instance.new("TextButton")
+                b.Size = UDim2.new(1, -4, 0, 24)
+                b.BackgroundColor3 = Color3.fromRGB(26, 26, 38)
+                b.Text = "  " .. tool.Name
+                b.TextColor3 = Color3.fromRGB(0, 240, 200)
+                b.Font = Enum.Font.Gotham
+                b.TextSize = 11
+                b.TextXAlignment = Enum.TextXAlignment.Left
+                b.BorderSizePixel = 0
+                b.Parent = scrollFrame
+                Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+                b.MouseButton1Click:Connect(function() tryGrabWeapon(tool) end)
+            end
+        end
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, sl.AbsoluteContentSize.Y)
+    end
+
+    refreshBtn.MouseButton1Click:Connect(populate)
+
+    expandBtn.MouseButton1Click:Connect(function()
+        weaponListExpanded = not weaponListExpanded
+        expandBtn.Text = weaponListExpanded and "▼" or "▲"
+        TweenService:Create(weaponListContainer, TweenInfo.new(0.2), {
+            Size = weaponListExpanded and UDim2.new(1, 0, 0, 30 + 132) or UDim2.new(1, 0, 0, 30)
+        }):Play()
+    end)
+
+    populate()
+    -- auto expand on first build
+    if weaponListExpanded then
+        weaponListContainer.Size = UDim2.new(1, 0, 0, 30 + 132)
+    end
+end
+
+-- ========== BUILD PAGES ==========
+makeToggle(visualPage, "ESP", false, function(s)
+    espEnabled = s
+    if s then for _, p in ipairs(Players:GetPlayers()) do createESP(p) end else clearESP() end
+end)
+
+makeToggle(visualPage, "Invisibility (local)", false, function(s)
+    invisEnabled = s
+    applyInvisibility(s)
+    if s then setupInvisConn() end
+end)
+
+-- Ghost page
+makeToggle(ghostPage, "Speed Boost", false, function(s)
+    ghostSpeed = s
+    if s then startGhostSpeed() end
+end)
+
+makeToggle(ghostPage, "NoClip", false, function(s)
+    noClipEnabled = s
+    if s then setupNoclip() end
+end)
+
+-- weapon page
+rebuildWeaponList()
+
+-- ========== DRAG (whole GUI, not just header) ==========
+local dragging, dragInput, dragStart, startPos
+main.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = main.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+main.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ========== COLLAPSE / CLOSE ==========
+local collapsed = false
+local fullSize = UDim2.new(0, 460, 0, 240)
+collapseBtn.MouseButton1Click:Connect(function()
+    collapsed = not collapsed
+    body.Visible = not collapsed
+    TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size = collapsed and UDim2.new(0, 460, 0, 36) or fullSize}):Play()
+    collapseBtn.Text = collapsed and "+" or "—"
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
+
+-- ========== RENDER LOOP ==========
+RunService.RenderStepped:Connect(function()
+    if espEnabled then updateESP() end
+end)
+
+-- ========== PLAYERS HOOK ==========
+Players.PlayerAdded:Connect(function(p) if espEnabled then createESP(p) end end)
+Players.PlayerRemoving:Connect(function(p)
+    if espDrawings[p] then
+        espDrawings[p].box:Remove(); espDrawings[p].name:Remove()
+        espDrawings[p] = nil
+    end
+end)
+
+print("[SAKTK HUB v3] loaded — horizontal, collapsible, local invisibility")
