@@ -1,4 +1,4 @@
--- SAKTKIA51 HUB v6 — auto ammo stand + server-only weapons
+-- SAKTKIA51 HUB v7 — filtered server weapons + auto ammo (tp & reload)
 -- Delta / Fluxus recommended
 
 local Players = game:GetService("Players")
@@ -51,7 +51,7 @@ local logoSub = Instance.new("TextLabel")
 logoSub.Size = UDim2.new(1, 0, 0, 20)
 logoSub.Position = UDim2.new(0, 0, 0, 50)
 logoSub.BackgroundTransparency = 1
-logoSub.Text = "H U B   v 6"
+logoSub.Text = "H U B   v 7"
 logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
 logoSub.Font = Enum.Font.Gotham
 logoSub.TextSize = 11
@@ -456,7 +456,7 @@ local function applyInvisibility(on)
     if not on then invisParts = {} end
 end
 
--- ========== WEAPON STANDS (только серверное оружие) ==========
+-- ========== WEAPON STANDS (filtered) ==========
 local weaponListExpanded = true
 local weaponListContainer
 
@@ -469,22 +469,48 @@ local function isPlayerTool(obj)
     return false
 end
 
+local function isWeaponStand(obj)
+    local name = obj.Name:lower()
+    local keywords = {"gun", "pistol", "rifle", "shotgun", "weapon", "ammo", "patron", "перезаряд", "патрон"}
+    for _, kw in ipairs(keywords) do
+        if name:find(kw) then return true end
+    end
+    
+    local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt then
+        local action = prompt.ActionText:lower()
+        local objName = prompt.ObjectText:lower()
+        for _, kw in ipairs(keywords) do
+            if action:find(kw) or objName:find(kw) then return true end
+        end
+    end
+    
+    if obj:IsA("Model") then
+        local hasTool = obj:FindFirstChildWhichIsA("Tool", true)
+        if hasTool then return true end
+    end
+    
+    return false
+end
+
 local function getWeaponStands()
     local stands = {}
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if isPlayerTool(obj) then continue end
-        local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-        local clickDet = obj:FindFirstChildWhichIsA("ClickDetector", true)
-        if prompt or clickDet then
-            local root = obj
-            while root.Parent and root.Parent ~= Workspace and not root:IsA("Model") and not root:IsA("BasePart") do
-                root = root.Parent
+        if isWeaponStand(obj) then
+            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+            local clickDet = obj:FindFirstChildWhichIsA("ClickDetector", true)
+            if prompt or clickDet then
+                local root = obj
+                while root.Parent and root.Parent ~= Workspace and not root:IsA("Model") and not root:IsA("BasePart") do
+                    root = root.Parent
+                end
+                local displayName = obj.Name
+                if prompt and prompt.ActionText ~= "" then
+                    displayName = prompt.ActionText
+                end
+                table.insert(stands, {root = root, display = displayName, prompt = prompt, click = clickDet})
             end
-            local displayName = root.Name
-            if displayName == "Part" or displayName == "Handle" then
-                displayName = obj.Name ~= "ProximityPrompt" and obj.Name or "Stand"
-            end
-            table.insert(stands, {root = root, display = displayName, prompt = prompt, click = clickDet})
         end
     end
     return stands
@@ -494,12 +520,21 @@ local function grabFromStand(stand)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
+
     local targetPart = stand.root:IsA("BasePart") and stand.root or stand.root:FindFirstChildWhichIsA("BasePart", true)
     if not targetPart then return end
+
     hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 3, 0))
     task.wait(0.1)
-    if stand.prompt then pcall(function() fireproximityprompt(stand.prompt) end) end
+
+    if stand.prompt then
+        pcall(function()
+            fireproximityprompt(stand.prompt)
+            stand.prompt.HoldDuration = 0
+        end)
+    end
     if stand.click then pcall(function() fireclickdetector(stand.click) end) end
+
     local touch = stand.root:FindFirstChildWhichIsA("TouchInterest", true)
     if touch and touch.Parent:IsA("BasePart") then
         pcall(function()
@@ -513,7 +548,8 @@ end
 local function goToAmmoStand()
     local stands = getWeaponStands()
     for _, stand in ipairs(stands) do
-        if stand.display:lower():find("ammo") then
+        local text = stand.display:lower()
+        if text:find("патрон") or text:find("перезаряд") or text:find("ammo") or text:find("reload") then
             grabFromStand(stand)
             return true
         end
@@ -682,8 +718,7 @@ makeToggle(visualPage, "Invisibility (local)", false, function(s)
     applyInvisibility(s)
 end)
 
--- Weapons: Auto Ammo + Rapid Fire + No Recoil
-makeButton(weaponPage, "Auto Ammo (go to ammo stand)", function()
+makeButton(weaponPage, "Auto Ammo (Tp & Reload)", function()
     local ok = goToAmmoStand()
     if not ok then
         print("[SAKTK] ammo stand not found")
@@ -751,4 +786,4 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
-print("[SAKTK HUB v6] loaded")
+print("[SAKTK HUB v7] loaded")
