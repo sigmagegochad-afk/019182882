@@ -1,4 +1,4 @@
--- SAKTKIA51 HUB v7 — filtered server weapons + auto ammo (tp & reload)
+-- SAKTKIA51 HUB v8 — instant tp-revert + real weapon names
 -- Delta / Fluxus recommended
 
 local Players = game:GetService("Players")
@@ -51,7 +51,7 @@ local logoSub = Instance.new("TextLabel")
 logoSub.Size = UDim2.new(1, 0, 0, 20)
 logoSub.Position = UDim2.new(0, 0, 0, 50)
 logoSub.BackgroundTransparency = 1
-logoSub.Text = "H U B   v 7"
+logoSub.Text = "H U B   v 8"
 logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
 logoSub.Font = Enum.Font.Gotham
 logoSub.TextSize = 11
@@ -456,7 +456,7 @@ local function applyInvisibility(on)
     if not on then invisParts = {} end
 end
 
--- ========== WEAPON STANDS (filtered) ==========
+-- ========== WEAPON STANDS (filtered + instant grab) ==========
 local weaponListExpanded = true
 local weaponListContainer
 
@@ -500,16 +500,39 @@ local function getWeaponStands()
         if isWeaponStand(obj) then
             local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
             local clickDet = obj:FindFirstChildWhichIsA("ClickDetector", true)
+            
             if prompt or clickDet then
                 local root = obj
                 while root.Parent and root.Parent ~= Workspace and not root:IsA("Model") and not root:IsA("BasePart") do
                     root = root.Parent
                 end
-                local displayName = obj.Name
-                if prompt and prompt.ActionText ~= "" then
-                    displayName = prompt.ActionText
+
+                local realWeaponName = "Unknown Weapon"
+                local toolInside = root:FindFirstChildWhichIsA("Tool", true)
+                if toolInside then
+                    realWeaponName = toolInside.Name
+                else
+                    local mesh = root:FindFirstChildWhichIsA("MeshPart", true) or root:FindFirstChildWhichIsA("SpecialMesh", true)
+                    if mesh and mesh.Parent.Name ~= "Handle" and mesh.Parent.Name ~= "Part" then
+                        realWeaponName = mesh.Parent.Name
+                    else
+                        if prompt and prompt.ObjectText ~= "" then
+                            realWeaponName = prompt.ObjectText
+                        else
+                            realWeaponName = root.Name
+                        end
+                    end
                 end
-                table.insert(stands, {root = root, display = displayName, prompt = prompt, click = clickDet})
+                if realWeaponName:lower() == "take" or realWeaponName:lower() == "stand" or realWeaponName:lower() == "part" then
+                    realWeaponName = root.Name
+                end
+
+                table.insert(stands, {
+                    root = root, 
+                    display = realWeaponName, 
+                    prompt = prompt, 
+                    click = clickDet
+                })
             end
         end
     end
@@ -524,25 +547,20 @@ local function grabFromStand(stand)
     local targetPart = stand.root:IsA("BasePart") and stand.root or stand.root:FindFirstChildWhichIsA("BasePart", true)
     if not targetPart then return end
 
-    hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 3, 0))
-    task.wait(0.1)
-
+    local originalCFrame = hrp.CFrame
+    hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 0.5, 0))
+    task.wait(0.05)
+    
     if stand.prompt then
         pcall(function()
-            fireproximityprompt(stand.prompt)
             stand.prompt.HoldDuration = 0
+            fireproximityprompt(stand.prompt)
         end)
     end
+    
     if stand.click then pcall(function() fireclickdetector(stand.click) end) end
-
-    local touch = stand.root:FindFirstChildWhichIsA("TouchInterest", true)
-    if touch and touch.Parent:IsA("BasePart") then
-        pcall(function()
-            firetouchinterest(hrp, touch.Parent, 0)
-            task.wait(0.05)
-            firetouchinterest(hrp, touch.Parent, 1)
-        end)
-    end
+    task.wait(0.05)
+    hrp.CFrame = originalCFrame
 end
 
 local function goToAmmoStand()
@@ -718,7 +736,7 @@ makeToggle(visualPage, "Invisibility (local)", false, function(s)
     applyInvisibility(s)
 end)
 
-makeButton(weaponPage, "Auto Ammo (Tp & Reload)", function()
+makeButton(weaponPage, "Auto Ammo (Instant)", function()
     local ok = goToAmmoStand()
     if not ok then
         print("[SAKTK] ammo stand not found")
@@ -786,4 +804,4 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
-print("[SAKTK HUB v7] loaded")
+print("[SAKTK HUB v8] loaded")
