@@ -1,4 +1,4 @@
--- SAKTKIA51 HUB v10 — Stable Auto Ammo + Filtered Weapon List
+-- SAKTKIA51 HUB by qnixT
 -- Delta / Fluxus recommended
 
 local Players = game:GetService("Players")
@@ -51,7 +51,7 @@ local logoSub = Instance.new("TextLabel")
 logoSub.Size = UDim2.new(1, 0, 0, 20)
 logoSub.Position = UDim2.new(0, 0, 0, 50)
 logoSub.BackgroundTransparency = 1
-logoSub.Text = "H U B   v 1 0"
+logoSub.Text = "H U B   by qnixT"
 logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
 logoSub.Font = Enum.Font.Gotham
 logoSub.TextSize = 11
@@ -141,10 +141,10 @@ local hTitle = Instance.new("TextLabel")
 hTitle.Size = UDim2.new(1, -90, 1, 0)
 hTitle.Position = UDim2.new(0, 14, 0, 0)
 hTitle.BackgroundTransparency = 1
-hTitle.Text = "SAKTK  HUB"
+hTitle.Text = "SAKTK HUB by qnixT"
 hTitle.TextColor3 = Color3.fromRGB(0, 240, 200)
 hTitle.Font = Enum.Font.GothamBold
-hTitle.TextSize = 14
+hTitle.TextSize = 13
 hTitle.TextXAlignment = Enum.TextXAlignment.Left
 hTitle.Parent = header
 
@@ -471,7 +471,6 @@ end
 
 local function isWeaponStand(obj)
     local name = obj.Name:lower()
-    -- Исключаем аммо, патроны и двери
     if name:find("ammo") or name:find("патрон") or name:find("patron") or name:find("door") or name:find("двер") then 
         return false 
     end
@@ -538,7 +537,7 @@ local function getWeaponStands()
     return stands
 end
 
--- ========== GRAB LOGIC ==========
+-- ========== GRAB LOGIC (ФИКС ПОДБОРА) ==========
 local function grabFromStand(stand, isInstant)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -547,28 +546,54 @@ local function grabFromStand(stand, isInstant)
     if not targetPart then return end
 
     local originalCFrame = hrp.CFrame
-    hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 0.5, 0))
+    
+    -- Телепорт прямо в стенд
+    hrp.CFrame = CFrame.new(targetPart.Position)
+    
+    -- Даем серверу 0.05 сек, чтобы засчитать нахождение рядом
+    task.wait(0.05)
     
     if stand.prompt then
         pcall(function()
-            stand.prompt.HoldDuration = 0
             fireproximityprompt(stand.prompt)
         end)
     end
-    if stand.click then pcall(function() fireclickdetector(stand.click) end) end
+    if stand.click then 
+        pcall(function() fireclickdetector(stand.click) end) 
+    end
     
-    if isInstant then
-        hrp.CFrame = originalCFrame
+    -- Ждем еще чуть-чуть и возвращаемся
+    task.wait(0.05)
+    hrp.CFrame = originalCFrame
+end
+
+-- ========== AUTO AMMO (ЯДРО) ==========
+local function executeAutoAmmo()
+    local targetStand = nil
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if not isPlayerTool(obj) then
+            local name = obj.Name:lower()
+            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+            local action = prompt and prompt.ActionText:lower() or ""
+            local objText = prompt and prompt.ObjectText:lower() or ""
+            
+            if name:find("ammo") or name:find("патрон") or action:find("перезаряд") or objText:find("патрон") then
+                targetStand = {root = obj, prompt = prompt, click = obj:FindFirstChildWhichIsA("ClickDetector", true)}
+                break
+            end
+        end
+    end
+
+    if targetStand then
+        grabFromStand(targetStand, true)
     else
-        task.wait(0.1)
-        hrp.CFrame = originalCFrame
+        print("[SAKTK] Ammo stand not found!")
     end
 end
 
 -- ========== AUTO AMMO BUTTON ==========
 local isAmmoBtnOut = false
 local ammoBtnGui
-local ammoBtn
 
 local function createAmmoButton()
     if ammoBtnGui then ammoBtnGui:Destroy() end
@@ -578,7 +603,7 @@ local function createAmmoButton()
     ammoBtnGui.ResetOnSpawn = false
     ammoBtnGui.Parent = CoreGui
 
-    ammoBtn = Instance.new("TextButton")
+    local ammoBtn = Instance.new("TextButton")
     ammoBtn.Size = UDim2.new(0, 50, 0, 50)
     ammoBtn.Position = UDim2.new(0, 20, 0, 200)
     ammoBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 150)
@@ -596,7 +621,6 @@ local function createAmmoButton()
     stroke.Transparency = 0.5
     stroke.Parent = ammoBtn
 
-    -- Перетаскивание
     local dragging, dragStart, startPos
     ammoBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -615,26 +639,8 @@ local function createAmmoButton()
         end
     end)
 
-    -- Мгновенная перезарядка
     ammoBtn.MouseButton1Click:Connect(function()
-        local targetStand = nil
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if not isPlayerTool(obj) then
-                local name = obj.Name:lower()
-                local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-                local action = prompt and prompt.ActionText:lower() or ""
-                local objText = prompt and prompt.ObjectText:lower() or ""
-                
-                if name:find("ammo") or name:find("патрон") or action:find("перезаряд") or objText:find("патрон") then
-                    targetStand = {root = obj, prompt = prompt, click = obj:FindFirstChildWhichIsA("ClickDetector", true)}
-                    break
-                end
-            end
-        end
-
-        if targetStand then
-            grabFromStand(targetStand, true)
-        end
+        executeAutoAmmo()
     end)
 end
 
@@ -764,9 +770,16 @@ makeToggle(visualPage, "Invisibility (local)", false, function(s)
     applyInvisibility(s)
 end)
 
-makeToggle(weaponPage, "Auto Ammo (On Screen)", false, function(s)
+-- Кнопка прямо в хабе (на странице Weapons)
+makeButton(weaponPage, "Auto Ammo (Instant)", function()
+    executeAutoAmmo()
+end)
+
+-- Тумблер для вывода круглой кнопки на экран
+makeToggle(weaponPage, "Show Ammo Button", false, function(s)
     if s ~= isAmmoBtnOut then toggleAmmoButton() end
 end)
+
 makeToggle(weaponPage, "Rapid Fire", false, function(s) rapidFireEnabled = s end)
 makeToggle(weaponPage, "No Recoil", false, function(s) noRecoilEnabled = s end)
 
@@ -874,4 +887,4 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
-print("[SAKTK HUB v10] loaded")
+print("[SAKTK HUB by qnixT] loaded")
