@@ -1,4 +1,4 @@
--- SAKTKIA51 HUB v9 — instant ammo float button + clean weapon list
+-- SAKTKIA51 HUB v10 — Stable Auto Ammo + Filtered Weapon List
 -- Delta / Fluxus recommended
 
 local Players = game:GetService("Players")
@@ -51,7 +51,7 @@ local logoSub = Instance.new("TextLabel")
 logoSub.Size = UDim2.new(1, 0, 0, 20)
 logoSub.Position = UDim2.new(0, 0, 0, 50)
 logoSub.BackgroundTransparency = 1
-logoSub.Text = "H U B   v 9"
+logoSub.Text = "H U B   v 1 0"
 logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
 logoSub.Font = Enum.Font.Gotham
 logoSub.TextSize = 11
@@ -457,6 +457,9 @@ local function applyInvisibility(on)
 end
 
 -- ========== WEAPON STANDS ==========
+local weaponListExpanded = true
+local weaponListContainer
+
 local function isPlayerTool(obj)
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr.Character and obj:IsDescendantOf(plr.Character) then return true end
@@ -468,15 +471,14 @@ end
 
 local function isWeaponStand(obj)
     local name = obj.Name:lower()
+    -- Исключаем аммо, патроны и двери
     if name:find("ammo") or name:find("патрон") or name:find("patron") or name:find("door") or name:find("двер") then 
         return false 
     end
-    
     local keywords = {"gun", "pistol", "rifle", "shotgun", "weapon", "deagle", "ak47", "m4"}
     for _, kw in ipairs(keywords) do
         if name:find(kw) then return true end
     end
-    
     local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
     if prompt then
         local action = prompt.ActionText:lower()
@@ -485,7 +487,6 @@ local function isWeaponStand(obj)
             if action:find(kw) or objName:find(kw) then return true end
         end
     end
-    
     if obj:IsA("Model") then
         local hasTool = obj:FindFirstChildWhichIsA("Tool", true)
         if hasTool then return true end
@@ -496,19 +497,16 @@ end
 local function getWeaponStands()
     local stands = {}
     local seen = {}
-    
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if isPlayerTool(obj) then continue end
         if isWeaponStand(obj) then
             local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
             local clickDet = obj:FindFirstChildWhichIsA("ClickDetector", true)
-            
             if prompt or clickDet then
                 local root = obj
                 while root.Parent and root.Parent ~= Workspace and not root:IsA("Model") and not root:IsA("BasePart") do
                     root = root.Parent
                 end
-
                 local realWeaponName = "Unknown Weapon"
                 local toolInside = root:FindFirstChildWhichIsA("Tool", true)
                 if toolInside then
@@ -528,7 +526,6 @@ local function getWeaponStands()
                 if realWeaponName:lower() == "take" or realWeaponName:lower() == "stand" or realWeaponName:lower() == "part" then
                     realWeaponName = root.Name
                 end
-                
                 if not realWeaponName:lower():find("ammo") and not realWeaponName:lower():find("патрон") then
                     if not seen[realWeaponName] then
                         seen[realWeaponName] = true
@@ -541,6 +538,7 @@ local function getWeaponStands()
     return stands
 end
 
+-- ========== GRAB LOGIC ==========
 local function grabFromStand(stand, isInstant)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -549,22 +547,16 @@ local function grabFromStand(stand, isInstant)
     if not targetPart then return end
 
     local originalCFrame = hrp.CFrame
-    if isInstant then
-        hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 0.5, 0))
-    else
-        hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 3, 0))
-    end
-
+    hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 0.5, 0))
+    
     if stand.prompt then
         pcall(function()
             stand.prompt.HoldDuration = 0
             fireproximityprompt(stand.prompt)
         end)
     end
-    if stand.click then 
-        pcall(function() fireclickdetector(stand.click) end) 
-    end
-
+    if stand.click then pcall(function() fireclickdetector(stand.click) end) end
+    
     if isInstant then
         hrp.CFrame = originalCFrame
     else
@@ -573,70 +565,86 @@ local function grabFromStand(stand, isInstant)
     end
 end
 
--- ========== AMMO FLOAT BUTTON ==========
-local ammoBtnGui = Instance.new("ScreenGui")
-ammoBtnGui.Name = "SAKTK_AmmoBtn"
-ammoBtnGui.IgnoreGuiInset = true
-ammoBtnGui.ResetOnSpawn = false
-ammoBtnGui.Enabled = false -- скрыта по умолчанию
-ammoBtnGui.Parent = CoreGui
+-- ========== AUTO AMMO BUTTON ==========
+local isAmmoBtnOut = false
+local ammoBtnGui
+local ammoBtn
 
-local ammoBtn = Instance.new("TextButton")
-ammoBtn.Size = UDim2.new(0, 50, 0, 50)
-ammoBtn.Position = UDim2.new(0, 20, 0, 200)
-ammoBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 150)
-ammoBtn.Text = "🔋"
-ammoBtn.TextColor3 = Color3.new(1,1,1)
-ammoBtn.Font = Enum.Font.GothamBold
-ammoBtn.TextSize = 24
-ammoBtn.BorderSizePixel = 0
-ammoBtn.Parent = ammoBtnGui
-Instance.new("UICorner", ammoBtn).CornerRadius = UDim.new(1, 0)
+local function createAmmoButton()
+    if ammoBtnGui then ammoBtnGui:Destroy() end
+    ammoBtnGui = Instance.new("ScreenGui")
+    ammoBtnGui.Name = "SAKTK_AmmoBtn"
+    ammoBtnGui.IgnoreGuiInset = true
+    ammoBtnGui.ResetOnSpawn = false
+    ammoBtnGui.Parent = CoreGui
 
-local ammoBtnDrag, ammoBtnStart, ammoBtnPos
-ammoBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        ammoBtnDrag = true
-        ammoBtnStart = input.Position
-        ammoBtnPos = ammoBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then ammoBtnDrag = false end
-        end)
-    end
-end)
-ammoBtn.InputChanged:Connect(function(input)
-    if ammoBtnDrag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - ammoBtnStart
-        ammoBtn.Position = UDim2.new(ammoBtnPos.X.Scale, ammoBtnPos.X.Offset + delta.X, ammoBtnPos.Y.Scale, ammoBtnPos.Y.Offset + delta.Y)
-    end
-end)
+    ammoBtn = Instance.new("TextButton")
+    ammoBtn.Size = UDim2.new(0, 50, 0, 50)
+    ammoBtn.Position = UDim2.new(0, 20, 0, 200)
+    ammoBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 150)
+    ammoBtn.Text = "🔋"
+    ammoBtn.TextColor3 = Color3.new(1,1,1)
+    ammoBtn.Font = Enum.Font.GothamBold
+    ammoBtn.TextSize = 24
+    ammoBtn.BorderSizePixel = 0
+    ammoBtn.Parent = ammoBtnGui
+    Instance.new("UICorner", ammoBtn).CornerRadius = UDim.new(1, 0)
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Thickness = 2
+    stroke.Transparency = 0.5
+    stroke.Parent = ammoBtn
 
-ammoBtn.MouseButton1Click:Connect(function()
-    -- Ищем ammo-стенд
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if not isPlayerTool(obj) then
-            local name = obj.Name:lower()
-            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-            local action = prompt and prompt.ActionText:lower() or ""
-            local objText = prompt and prompt.ObjectText:lower() or ""
-            
-            if name:find("ammo") or name:find("патрон") or action:find("перезаряд") or objText:find("патрон") then
-                local root = obj
-                while root.Parent and root.Parent ~= Workspace and not root:IsA("Model") and not root:IsA("BasePart") do
-                    root = root.Parent
+    -- Перетаскивание
+    local dragging, dragStart, startPos
+    ammoBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = ammoBtn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    ammoBtn.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            ammoBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- Мгновенная перезарядка
+    ammoBtn.MouseButton1Click:Connect(function()
+        local targetStand = nil
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if not isPlayerTool(obj) then
+                local name = obj.Name:lower()
+                local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+                local action = prompt and prompt.ActionText:lower() or ""
+                local objText = prompt and prompt.ObjectText:lower() or ""
+                
+                if name:find("ammo") or name:find("патрон") or action:find("перезаряд") or objText:find("патрон") then
+                    targetStand = {root = obj, prompt = prompt, click = obj:FindFirstChildWhichIsA("ClickDetector", true)}
+                    break
                 end
-                local clickDet = obj:FindFirstChildWhichIsA("ClickDetector", true)
-                grabFromStand({root=root, prompt=prompt, click=clickDet}, true)
-                break
             end
         end
-    end
-end)
+
+        if targetStand then
+            grabFromStand(targetStand, true)
+        end
+    end)
+end
+
+local function toggleAmmoButton()
+    isAmmoBtnOut = not isAmmoBtnOut
+    if isAmmoBtnOut then createAmmoButton()
+    else if ammoBtnGui then ammoBtnGui:Destroy() end end
+end
 
 -- ========== WEAPON LIST UI ==========
-local weaponListExpanded = true
-local weaponListContainer
-
 local function rebuildWeaponList()
     if weaponListContainer then weaponListContainer:Destroy() end
     weaponListContainer = Instance.new("Frame")
@@ -745,6 +753,42 @@ local function rebuildWeaponList()
     populate()
 end
 
+-- ========== BUILD UI ==========
+makeToggle(visualPage, "ESP", false, function(s)
+    espEnabled = s
+    if s then for _, p in ipairs(Players:GetPlayers()) do createESP(p) end else clearESP() end
+end)
+makeToggle(visualPage, "Hitbox Expander", false, function(s) hitboxEnabled = s end)
+makeToggle(visualPage, "Invisibility (local)", false, function(s)
+    invisEnabled = s
+    applyInvisibility(s)
+end)
+
+makeToggle(weaponPage, "Auto Ammo (On Screen)", false, function(s)
+    if s ~= isAmmoBtnOut then toggleAmmoButton() end
+end)
+makeToggle(weaponPage, "Rapid Fire", false, function(s) rapidFireEnabled = s end)
+makeToggle(weaponPage, "No Recoil", false, function(s) noRecoilEnabled = s end)
+
+rebuildWeaponList()
+
+makeSlider(combatPage, "Walk Speed", 16, 120, 22, function(v) speedValue = v end)
+makeToggle(combatPage, "Speed Boost", false, function(s) ghostSpeed = s end)
+makeToggle(combatPage, "NoClip", false, function(s) noClipEnabled = s end)
+
+makeToggle(ghostPage, "Auto-Respawn (placeholder)", false, function(s) end)
+
+makeButton(miscPage, "Rejoin Server", function()
+    game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+end)
+makeButton(miscPage, "Server Hop", function()
+    local ts = game:GetService("TeleportService")
+    local code = game:GetService("HttpService"):GenerateGUID(false)
+    pcall(function()
+        ts:TeleportToPlaceInstance(game.PlaceId, code, LocalPlayer)
+    end)
+end)
+
 -- ========== MAIN LOOP ==========
 RunService.RenderStepped:Connect(function()
     if espEnabled then updateESP() end
@@ -787,43 +831,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ========== BUILD UI ==========
-makeToggle(visualPage, "ESP", false, function(s)
-    espEnabled = s
-    if s then for _, p in ipairs(Players:GetPlayers()) do createESP(p) end else clearESP() end
-end)
-makeToggle(visualPage, "Hitbox Expander", false, function(s) hitboxEnabled = s end)
-makeToggle(visualPage, "Invisibility (local)", false, function(s)
-    invisEnabled = s
-    applyInvisibility(s)
-end)
-
-makeToggle(weaponPage, "Auto Ammo (On Screen)", false, function(s)
-    ammoBtnGui.Enabled = s
-end)
-
-makeToggle(weaponPage, "Rapid Fire", false, function(s) rapidFireEnabled = s end)
-makeToggle(weaponPage, "No Recoil", false, function(s) noRecoilEnabled = s end)
-
-rebuildWeaponList()
-
-makeSlider(combatPage, "Walk Speed", 16, 120, 22, function(v) speedValue = v end)
-makeToggle(combatPage, "Speed Boost", false, function(s) ghostSpeed = s end)
-makeToggle(combatPage, "NoClip", false, function(s) noClipEnabled = s end)
-
-makeToggle(ghostPage, "Auto-Respawn (placeholder)", false, function(s) end)
-
-makeButton(miscPage, "Rejoin Server", function()
-    game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-end)
-makeButton(miscPage, "Server Hop", function()
-    local ts = game:GetService("TeleportService")
-    local code = game:GetService("HttpService"):GenerateGUID(false)
-    pcall(function()
-        ts:TeleportToPlaceInstance(game.PlaceId, code, LocalPlayer)
-    end)
-end)
-
 -- ========== DRAG ==========
 local dragging, dragStart, startPos
 main.InputBegan:Connect(function(input)
@@ -853,7 +860,10 @@ collapseBtn.MouseButton1Click:Connect(function()
         {Size = collapsed and UDim2.new(0, 480, 0, 38) or fullSize}):Play()
     collapseBtn.Text = collapsed and "+" or "—"
 end)
-closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+closeBtn.MouseButton1Click:Connect(function() 
+    if ammoBtnGui then ammoBtnGui:Destroy() end
+    gui:Destroy() 
+end)
 
 -- ========== PLAYERS HOOK ==========
 Players.PlayerAdded:Connect(function(p) if espEnabled then createESP(p) end end)
@@ -864,4 +874,4 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
-print("[SAKTK HUB v9] loaded")
+print("[SAKTK HUB v10] loaded")
