@@ -1,4 +1,4 @@
--- SAKTKIA51 HUB by qnixT
+-- SAKTKIA51 HUB v11 by qnixT
 -- Delta / Fluxus recommended
 
 local Players = game:GetService("Players")
@@ -51,7 +51,7 @@ local logoSub = Instance.new("TextLabel")
 logoSub.Size = UDim2.new(1, 0, 0, 20)
 logoSub.Position = UDim2.new(0, 0, 0, 50)
 logoSub.BackgroundTransparency = 1
-logoSub.Text = "H U B   by qnixT"
+logoSub.Text = "H U B   v 1 1   b y   q n i x T"
 logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
 logoSub.Font = Enum.Font.Gotham
 logoSub.TextSize = 11
@@ -82,7 +82,7 @@ loadStatus.Font = Enum.Font.Gotham
 loadStatus.TextSize = 11
 loadStatus.Parent = loadBg
 
-local steps = {"initializing core", "scanning server weapons", "loading modules", "building interface", "ready"}
+local steps = {"initializing core", "scanning all weapons", "loading ESP", "building interface", "ready"}
 for i, s in ipairs(steps) do
     loadStatus.Text = s
     TweenService:Create(progressFill, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -141,7 +141,7 @@ local hTitle = Instance.new("TextLabel")
 hTitle.Size = UDim2.new(1, -90, 1, 0)
 hTitle.Position = UDim2.new(0, 14, 0, 0)
 hTitle.BackgroundTransparency = 1
-hTitle.Text = "SAKTK HUB by qnixT"
+hTitle.Text = "SAKTK HUB v11 by qnixT"
 hTitle.TextColor3 = Color3.fromRGB(0, 240, 200)
 hTitle.Font = Enum.Font.GothamBold
 hTitle.TextSize = 13
@@ -382,7 +382,7 @@ local speedValue = 22
 local espDrawings = {}
 local invisParts = {}
 
--- ========== ESP ==========
+-- ========== ESP (Обновленный) ==========
 local function clearESP()
     for _, d in pairs(espDrawings) do
         d.box:Remove(); d.name:Remove()
@@ -404,26 +404,63 @@ local function updateESP()
         local char = plr.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
+        
         if not (hrp and hum and hum.Health > 0 and espEnabled) then
             d.box.Visible = false; d.name.Visible = false; continue
         end
+        
         local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
         if not onScreen then
             d.box.Visible = false; d.name.Visible = false; continue
         end
+        
         local head = char:FindFirstChild("Head")
         if not head then continue end
         local hp = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
         local fp = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
         local h = math.abs(hp.Y - fp.Y)
         local w = h * 0.6
-        local isKiller = plr.Team and (plr.Team.Name:lower():find("killer") or plr.Team.Name:lower():find("murder"))
-        local isJugg = plr.Team and plr.Team.Name:lower():find("jugg")
-        local color = isJugg and Color3.fromRGB(200, 0, 255) or (isKiller and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(50, 255, 100))
+        
+        -- Определение роли (Убийца, Джаггернаут или Выживший)
+        local isKiller = false
+        local isJugg = false
+        
+        -- 1. Проверка по команде (Team)
+        if plr.Team then
+            local teamName = plr.Team.Name:lower()
+            if teamName:find("killer") or teamName:find("murder") or teamName:find("monster") or teamName:find("убий") then
+                isKiller = true
+            elseif teamName:find("jugg") or teamName:find("джаг") then
+                isJugg = true
+            end
+        end
+        
+        -- 2. Проверка по оружию в руках (если есть нож/пила - значит убийца)
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then
+            local toolName = tool.Name:lower()
+            if toolName:find("knife") or toolName:find("sword") or toolName:find("saw") or toolName:find("axe") or toolName:find("нож") or toolName:find("пила") then
+                isKiller = true
+            end
+        end
+        
+        -- 3. Проверка по размеру (Джаггернаут большой)
+        if hum.HipHeight > 3 or hrp.Size.Y > 4 then
+            isJugg = true
+        end
+
+        local color = Color3.fromRGB(50, 255, 100) -- Зеленый (Выживший)
+        if isJugg then
+            color = Color3.fromRGB(200, 0, 255) -- Фиолетовый (Джаггернаут)
+        elseif isKiller then
+            color = Color3.fromRGB(255, 50, 50) -- Красный (Убийца)
+        end
+
         d.box.Color = color
         d.box.Size = Vector2.new(w, h)
         d.box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
         d.box.Visible = true
+        
         d.name.Text = plr.Name
         d.name.Color = color
         d.name.Position = Vector2.new(pos.X, pos.Y - h/2 - 14)
@@ -469,27 +506,31 @@ local function isPlayerTool(obj)
     return false
 end
 
+-- Универсальный поиск любых стендов с оружием
 local function isWeaponStand(obj)
     local name = obj.Name:lower()
-    if name:find("ammo") or name:find("патрон") or name:find("patron") or name:find("door") or name:find("двер") then 
+    if name:find("ammo") or name:find("патрон") or name:find("patron") or name:find("door") or name:find("двер") or name:find("button") or name:find("кнопка") then 
         return false 
     end
-    local keywords = {"gun", "pistol", "rifle", "shotgun", "weapon", "deagle", "ak47", "m4"}
-    for _, kw in ipairs(keywords) do
-        if name:find(kw) then return true end
-    end
+    
     local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+    local clickDet = obj:FindFirstChildWhichIsA("ClickDetector", true)
+    
     if prompt then
         local action = prompt.ActionText:lower()
         local objName = prompt.ObjectText:lower()
-        for _, kw in ipairs(keywords) do
-            if action:find(kw) or objName:find(kw) then return true end
+        if action:find("take") or action:find("grab") or action:find("взять") or action:find("подобр") then
+            return true
         end
+        -- Если есть ObjectText, значит это скорее всего оружие
+        if objName ~= "" then return true end
     end
+    
     if obj:IsA("Model") then
         local hasTool = obj:FindFirstChildWhichIsA("Tool", true)
         if hasTool then return true end
     end
+    
     return false
 end
 
@@ -501,35 +542,33 @@ local function getWeaponStands()
         if isWeaponStand(obj) then
             local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
             local clickDet = obj:FindFirstChildWhichIsA("ClickDetector", true)
+            
             if prompt or clickDet then
                 local root = obj
                 while root.Parent and root.Parent ~= Workspace and not root:IsA("Model") and not root:IsA("BasePart") do
                     root = root.Parent
                 end
-                local realWeaponName = "Unknown Weapon"
-                local toolInside = root:FindFirstChildWhichIsA("Tool", true)
-                if toolInside then
-                    realWeaponName = toolInside.Name
+                
+                local realWeaponName = "Weapon"
+                if prompt and prompt.ObjectText ~= "" then
+                    realWeaponName = prompt.ObjectText
                 else
-                    local mesh = root:FindFirstChildWhichIsA("MeshPart", true) or root:FindFirstChildWhichIsA("SpecialMesh", true)
-                    if mesh and mesh.Parent.Name ~= "Handle" and mesh.Parent.Name ~= "Part" then
-                        realWeaponName = mesh.Parent.Name
+                    local toolInside = root:FindFirstChildWhichIsA("Tool", true)
+                    if toolInside then
+                        realWeaponName = toolInside.Name
                     else
-                        if prompt and prompt.ObjectText ~= "" then
-                            realWeaponName = prompt.ObjectText
-                        else
-                            realWeaponName = root.Name
-                        end
+                        realWeaponName = root.Name
                     end
                 end
-                if realWeaponName:lower() == "take" or realWeaponName:lower() == "stand" or realWeaponName:lower() == "part" then
+                
+                -- Очистка имени
+                if realWeaponName:lower() == "take" or realWeaponName:lower() == "part" then
                     realWeaponName = root.Name
                 end
-                if not realWeaponName:lower():find("ammo") and not realWeaponName:lower():find("патрон") then
-                    if not seen[realWeaponName] then
-                        seen[realWeaponName] = true
-                        table.insert(stands, {root = root, display = realWeaponName, prompt = prompt, click = clickDet})
-                    end
+                
+                if not seen[realWeaponName] and not realWeaponName:lower():find("ammo") then
+                    seen[realWeaponName] = true
+                    table.insert(stands, {root = root, display = realWeaponName, prompt = prompt, click = clickDet})
                 end
             end
         end
@@ -537,7 +576,7 @@ local function getWeaponStands()
     return stands
 end
 
--- ========== GRAB LOGIC (ФИКС ПОДБОРА) ==========
+-- ========== GRAB LOGIC (Исправленный авто-аммо) ==========
 local function grabFromStand(stand, isInstant)
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -547,27 +586,28 @@ local function grabFromStand(stand, isInstant)
 
     local originalCFrame = hrp.CFrame
     
-    -- Телепорт прямо в стенд
+    -- 1. Телепорт прямо в центр стенда
     hrp.CFrame = CFrame.new(targetPart.Position)
     
-    -- Даем серверу 0.05 сек, чтобы засчитать нахождение рядом
-    task.wait(0.05)
+    -- 2. Ждем, чтобы сервер увидел телепорт (0.1 сек)
+    task.wait(0.1)
     
+    -- 3. Активируем
     if stand.prompt then
-        pcall(function()
-            fireproximityprompt(stand.prompt)
-        end)
+        pcall(function() fireproximityprompt(stand.prompt) end)
     end
     if stand.click then 
         pcall(function() fireclickdetector(stand.click) end) 
     end
     
-    -- Ждем еще чуть-чуть и возвращаемся
-    task.wait(0.05)
+    -- 4. Ждем, чтобы оружие/патроны зачислились
+    task.wait(0.1)
+    
+    -- 5. Возвращаем на место
     hrp.CFrame = originalCFrame
 end
 
--- ========== AUTO AMMO (ЯДРО) ==========
+-- ========== AUTO AMMO ==========
 local function executeAutoAmmo()
     local targetStand = nil
     for _, obj in ipairs(Workspace:GetDescendants()) do
@@ -577,7 +617,7 @@ local function executeAutoAmmo()
             local action = prompt and prompt.ActionText:lower() or ""
             local objText = prompt and prompt.ObjectText:lower() or ""
             
-            if name:find("ammo") or name:find("патрон") or action:find("перезаряд") or objText:find("патрон") then
+            if name:find("ammo") or name:find("патрон") or action:find("перезаряд") or objText:find("патрон") or objText:find("ammo") then
                 targetStand = {root = obj, prompt = prompt, click = obj:FindFirstChildWhichIsA("ClickDetector", true)}
                 break
             end
@@ -670,7 +710,7 @@ local function rebuildWeaponList()
     hdrLbl.Size = UDim2.new(1, -80, 1, 0)
     hdrLbl.Position = UDim2.new(0, 10, 0, 0)
     hdrLbl.BackgroundTransparency = 1
-    hdrLbl.Text = "Server Weapons"
+    hdrLbl.Text = "All Server Weapons"
     hdrLbl.TextColor3 = Color3.fromRGB(160, 160, 180)
     hdrLbl.Font = Enum.Font.Gotham
     hdrLbl.TextSize = 11
@@ -770,12 +810,10 @@ makeToggle(visualPage, "Invisibility (local)", false, function(s)
     applyInvisibility(s)
 end)
 
--- Кнопка прямо в хабе (на странице Weapons)
-makeButton(weaponPage, "Auto Ammo (Instant)", function()
+makeButton(weaponPage, "Auto Ammo (Instant Reload)", function()
     executeAutoAmmo()
 end)
 
--- Тумблер для вывода круглой кнопки на экран
 makeToggle(weaponPage, "Show Ammo Button", false, function(s)
     if s ~= isAmmoBtnOut then toggleAmmoButton() end
 end)
@@ -887,4 +925,4 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
-print("[SAKTK HUB by qnixT] loaded")
+print("[SAKTK HUB v11 by qnixT] loaded")
