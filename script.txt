@@ -1,4 +1,4 @@
--- SAKTKIA51 HUB v14 by qnixT
+-- SAKTKIA51 HUB by qnixT
 -- Delta / Fluxus recommended
 
 local Players = game:GetService("Players")
