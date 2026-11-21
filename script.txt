@@ -1,5 +1,5 @@
 -- SAKTKIA51 HUB by qnixT
--- Delta / Fluxus recommended
+-- Optimized for mobile & Delta/Fluxus
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -52,7 +52,7 @@ local logoSub = Instance.new("TextLabel")
 logoSub.Size = UDim2.new(1, 0, 0, 20)
 logoSub.Position = UDim2.new(0, 0, 0, 50)
 logoSub.BackgroundTransparency = 1
-logoSub.Text = "H U B   v 1 4   b y   q n i x T"
+logoSub.Text = "H U B   b y   q n i x T"
 logoSub.TextColor3 = Color3.fromRGB(80, 80, 100)
 logoSub.Font = Enum.Font.Gotham
 logoSub.TextSize = 11
@@ -83,7 +83,7 @@ loadStatus.Font = Enum.Font.Gotham
 loadStatus.TextSize = 11
 loadStatus.Parent = loadBg
 
-local steps = {"initializing core", "scanning entities", "loading ESP", "building interface", "ready"}
+local steps = {"initializing", "optimizing", "loading esp", "building", "ready"}
 for i, s in ipairs(steps) do
     loadStatus.Text = s
     TweenService:Create(progressFill, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -142,7 +142,7 @@ local hTitle = Instance.new("TextLabel")
 hTitle.Size = UDim2.new(1, -90, 1, 0)
 hTitle.Position = UDim2.new(0, 14, 0, 0)
 hTitle.BackgroundTransparency = 1
-hTitle.Text = "SAKTK HUB v14 by qnixT"
+hTitle.Text = "SAKTK HUB by qnixT"
 hTitle.TextColor3 = Color3.fromRGB(0, 240, 200)
 hTitle.Font = Enum.Font.GothamBold
 hTitle.TextSize = 13
@@ -383,14 +383,33 @@ local speedValue = 22
 local espDrawings = {}
 local highlights = {}
 local invisParts = {}
+local isTeleporting = false 
 
--- ========== ESP (Оптимизированный + Highlight) ==========
+-- ========== MONSTER LIST ==========
+local MONSTER_LIST = {
+    "alien", "ao oni", "captain zombie", "chucky", "eyeless jack", "fishface",
+    "freddy krueger", "ghostface", "granny", "jack torrance", "jason", "jeff",
+    "leatherface", "michael myers", "pennywise", "pinhead", "rake", "robot",
+    "slenderman", "smile dog", "sonic.exe", "tails doll", "wendigo", "zombie"
+}
+
+local function isMonsterName(name)
+    local lowerName = name:lower()
+    for _, monster in ipairs(MONSTER_LIST) do
+        if lowerName:find(monster) then
+            return true
+        end
+    end
+    return false
+end
+
+-- ========== OPTIMIZED ESP ==========
 local function clearESP()
     for _, d in pairs(espDrawings) do
         d.box:Remove(); d.name:Remove()
     end
     for _, h in pairs(highlights) do
-        h:Destroy()
+        if h then h:Destroy() end
     end
     espDrawings = {}
     highlights = {}
@@ -403,6 +422,15 @@ local function createESP(plr)
     local name = Drawing.new("Text")
     name.Size = 13; name.Center = true; name.Outline = true; name.Transparency = 1
     espDrawings[plr] = {box = box, name = name}
+    
+    if plr.Character then
+        local hl = Instance.new("Highlight")
+        hl.Parent = plr.Character
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.FillTransparency = 1
+        hl.Enabled = false
+        highlights[plr] = hl
+    end
 end
 
 local function updateESP()
@@ -410,6 +438,15 @@ local function updateESP()
         local char = plr.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         local hum = char and char:FindFirstChildOfClass("Humanoid")
+        
+        if char and not highlights[plr] then
+            local hl = Instance.new("Highlight")
+            hl.Parent = char
+            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            hl.FillTransparency = 1
+            hl.Enabled = false
+            highlights[plr] = hl
+        end
         
         if not (hrp and hum and hum.Health > 0 and espEnabled) then
             d.box.Visible = false; d.name.Visible = false
@@ -434,25 +471,31 @@ local function updateESP()
         local isKiller = false
         local isJugg = false
         
-        -- Проверки
+        -- 1. Проверка по команде
         if plr.Team then
             local tName = plr.Team.Name:lower()
-            if tName:find("killer") or tName:find("murder") or tName:find("monster") or tName:find("demon") or tName:find("убий") or tName:find("slender") then isKiller = true
+            if tName:find("killer") or tName:find("murder") or tName:find("monster") or tName:find("demon") or tName:find("убий") then isKiller = true
             elseif tName:find("jugg") or tName:find("джаг") then isJugg = true end
         end
+
+        -- 2. Проверка по списку монстров (Имя персонажа или DisplayName)
         local charName = char.Name:lower()
-        if charName:find("slender") or charName:find("monster") or charName:find("demon") or charName:find("killer") then isKiller = true end
+        local displayName = plr.DisplayName:lower()
+        if isMonsterName(charName) or isMonsterName(displayName) then
+            isKiller = true
+        end
+
+        -- 3. Проверка по оружию
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
             local toolName = tool.Name:lower()
             if toolName:find("knife") or toolName:find("sword") or toolName:find("saw") or toolName:find("axe") or toolName:find("claw") or toolName:find("нож") or toolName:find("пила") then isKiller = true end
         end
 
-        local color = Color3.fromRGB(50, 255, 100)
+        local color = Color3.fromRGB(50, 255, 100) -- Выживший
         if isJugg then color = Color3.fromRGB(200, 0, 255)
-        elseif isKiller then color = Color3.fromRGB(255, 50, 50) end
+        elseif isKiller then color = Color3.fromRGB(255, 50, 50) end -- Монстры/Убийцы
 
-        -- Отрисовка Бокса
         d.box.Color = color
         d.box.Size = Vector2.new(w, h)
         d.box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2)
@@ -462,16 +505,10 @@ local function updateESP()
         d.name.Position = Vector2.new(pos.X, pos.Y - h/2 - 14)
         d.name.Visible = true
 
-        -- Отрисовка Highlight (Обводка модели)
-        if not highlights[plr] then
-            local hl = Instance.new("Highlight")
-            hl.Parent = char
-            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            hl.FillTransparency = 1
-            highlights[plr] = hl
+        if highlights[plr] then
+            highlights[plr].OutlineColor = color
+            highlights[plr].Enabled = true
         end
-        highlights[plr].OutlineColor = color
-        highlights[plr].Enabled = true
     end
 end
 
@@ -558,11 +595,9 @@ local function getWeaponStands()
     return stands
 end
 
--- ========== ГЛОБАЛЬНЫЙ ФЛАГ ТЕЛЕПОРТА ==========
-local isTeleporting = false 
-
+-- ========== PHANTOM GRAB (Хитбокс улетает, камера стоит) ==========
 local function grabFromStand(stand, isInstant)
-    if isTeleporting then return end -- Защита от спама
+    if isTeleporting then return end
     isTeleporting = true
 
     local char = LocalPlayer.Character
@@ -576,21 +611,17 @@ local function grabFromStand(stand, isInstant)
     if not targetPart then targetPart = stand.root:IsA("BasePart") and stand.root or stand.root:FindFirstChildWhichIsA("BasePart", true) end
     if not targetPart then isTeleporting = false return end
 
-    -- Сохраняем точную позицию
     local originalCFrame = hrp.CFrame
+    local camCFrame = Camera.CFrame
     
-    -- Телепорт прямо в деталь
-    hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 0.5, 0))
-    
-    -- Задержки минимальны, но достаточны для регистрации на сервере
-    task.wait(0.05)
+    hrp.CFrame = CFrame.new(targetPart.Position)
+
     if stand.prompt then pcall(function() fireproximityprompt(stand.prompt) end) end
     if stand.click then pcall(function() fireclickdetector(stand.click) end) end
-    task.wait(0.05)
-    
-    -- Возврат на ТОЧНУЮ позицию
+
     hrp.CFrame = originalCFrame
-    
+    Camera.CFrame = camCFrame
+
     isTeleporting = false
 end
 
@@ -773,16 +804,33 @@ local function rebuildWeaponList()
     populate()
 end
 
--- ========== NEW FUNCTIONS (Anti-Fling, Fullbright, FPS Boost) ==========
+-- ========== NEW FUNCTIONS ==========
 local antiFlingEnabled = false
+local autoInteractEnabled = false
+
 RunService.Heartbeat:Connect(function()
-    if not antiFlingEnabled then return end
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        if hrp.Velocity.Magnitude > 100 or hrp.RotVelocity.Magnitude > 50 then
-            hrp.Velocity = Vector3.new(0, 0, 0)
-            hrp.RotVelocity = Vector3.new(0, 0, 0)
+    if antiFlingEnabled then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            if hrp.Velocity.Magnitude > 100 or hrp.RotVelocity.Magnitude > 50 then
+                hrp.Velocity = Vector3.new(0, 0, 0)
+                hrp.RotVelocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end
+    if autoInteractEnabled then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and (obj.ObjectText:lower():find("health") or obj.ObjectText:lower():find("armor") or obj.ObjectText:lower():find("аптеч") or obj.ObjectText:lower():find("броня")) then
+                    local dist = (obj.Parent.Position - hrp.Position).Magnitude
+                    if dist < 10 then
+                        pcall(function() fireproximityprompt(obj) end)
+                    end
+                end
+            end
         end
     end
 end)
@@ -818,6 +866,27 @@ local function clearFPS()
     pcall(function() settings().Rendering.QualityLevel = 1 end)
 end
 
+local function spamServer()
+    for i = 1, 30 do
+        local s = Instance.new("Sound")
+        s.Parent = Workspace
+        s.Volume = 10
+        s.Playing = true
+    end
+end
+
+local walkOnWaterEnabled = false
+RunService.Stepped:Connect(function()
+    if not walkOnWaterEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v:IsA("BasePart") and v.Name:lower() == "water" then
+            v.CanCollide = true
+        end
+    end
+end)
+
 -- ========== BUILD UI ==========
 makeToggle(visualPage, "ESP", false, function(s)
     espEnabled = s
@@ -841,8 +910,11 @@ makeToggle(combatPage, "Speed Boost", false, function(s) ghostSpeed = s end)
 makeToggle(combatPage, "NoClip", false, function(s) noClipEnabled = s end)
 
 makeToggle(miscPage, "Anti-Fling", false, function(s) antiFlingEnabled = s end)
+makeToggle(miscPage, "Auto-Interact (Health/Armor)", false, function(s) autoInteractEnabled = s end)
 makeToggle(miscPage, "Fullbright", false, function(s) toggleFullbright(s) end)
 makeButton(miscPage, "FPS Boost", function() clearFPS() end)
+makeButton(miscPage, "Server Spam (Lagger)", function() spamServer() end)
+makeToggle(miscPage, "Walk on Water", false, function(s) walkOnWaterEnabled = s end)
 
 makeButton(miscPage, "Rejoin Server", function()
     game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
@@ -927,4 +999,4 @@ Players.PlayerRemoving:Connect(function(p)
     if highlights[p] then highlights[p]:Destroy(); highlights[p] = nil end
 end)
 
-print("[SAKTK HUB v14 by qnixT] loaded")
+print("[SAKTK HUB by qnixT] loaded")
